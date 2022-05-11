@@ -1,16 +1,19 @@
 from django.shortcuts import render
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
+from django.conf import settings
+from django.template.loader import render_to_string
+
 # Create your views here.
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
-from rest_framework import status
+from rest_framework import status,permissions
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from .models import Award, FormApply, User, StudentTranscript
 from .Serializer import AwardSerializer, FormApplySerializer, UserSerializer, StudentTranscriptSerializer
 
-import requests
+
 
 
 class ListCreateAwardView(ListCreateAPIView):
@@ -67,13 +70,7 @@ class UpdateDeleteAwardView(RetrieveUpdateDestroyAPIView):
         }, status=status.HTTP_200_OK)
 
 
-def home2(request):
-    response = requests.get('http://127.0.0.1:8000/api/award')
-    print(response.json())
-    context = {
-        'data': response.json()[0]
-    }
-    return render(request, 'test.html', context)
+
 
 
 # ////////
@@ -82,14 +79,17 @@ class ListCreateFormApplyView(ListCreateAPIView):
     serializer_class = FormApplySerializer
 
     def get_queryset(self):
-        return FormApply.objects.all()
+        formApply= FormApply.objects.filter()
+        s = self.request.query_params.get('s')
+        if s is not  None:
+            formApply= formApply.filter(status=s)
+        return formApply
 
     def create(self, request, *args, **kwargs):
         serializer = FormApplySerializer(data=request.data)
 
         if serializer.is_valid():
             serializer.save()
-
             return JsonResponse({
                 'message': 'Create a new Award successful!'
             }, status=status.HTTP_201_CREATED)
@@ -98,10 +98,23 @@ class ListCreateFormApplyView(ListCreateAPIView):
             'message': 'Create a new Award unsuccessful!'
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    # //// mail
+# def success(request):
+#     email=EmailMessage(
+#         'subject',
+#          'body',
+#          settings.EMAIL_HOST_USER,
+#          ['doandan301.@gmail.com'],
+#                     )
+#     email.fail_silently=False
+#     email.send()
+#     return render(request,'send/index.html')
+#     # /////
 
 class UpdateDeleteFormApplyView(RetrieveUpdateDestroyAPIView):
     model = FormApply
     serializer_class = FormApplySerializer
+
 
     def get_queryset(self):
         student_id = self.kwargs['pk']
@@ -129,15 +142,7 @@ class UpdateDeleteFormApplyView(RetrieveUpdateDestroyAPIView):
         return JsonResponse({
             'message': 'Delete Award successful!'
         }, status=status.HTTP_200_OK)
-    # //// mail
-    def index(request):
 
-        send_mail('OK','this is an automated email',
-                  'nguyenduykhuong0201t@gmail.com',
-                  ['wiropoc349@eoscast.com'],
-                  fail_silently=False)
-        return render(request,'send/index.html')
-    # /////
 
 
 class ListCreateStudentTranscriptView(ListCreateAPIView):
@@ -145,7 +150,12 @@ class ListCreateStudentTranscriptView(ListCreateAPIView):
     serializer_class = StudentTranscriptSerializer
 
     def get_queryset(self):
-        return StudentTranscript.objects.all()
+        transcript = StudentTranscript.objects.filter()
+        p = self.request.query_params.get("p")
+        if p is not None:
+            transcript=transcript.filter(student_id=p)
+        return transcript
+
 
     def create(self, request, *args, **kwargs):
         serializer = StudentTranscriptSerializer(data=request.data)
